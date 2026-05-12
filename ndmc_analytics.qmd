@@ -1,0 +1,2208 @@
+---
+title: "Cross-Platform Data Analytics for a Nigerian Digital Media Company"
+author: "Tobi Oyetoro"
+date: today
+format:
+  html:
+    theme: flatly
+    toc: true
+    toc-depth: 3
+    toc-title: "Table of Contents"
+    code-fold: true
+    self-contained: true
+    smooth-scroll: true
+    highlight-style: github
+    fig-width: 10
+    fig-height: 6
+execute:
+  warning: false
+  message: false
+  echo: true
+---
+
+```{r setup, include=FALSE}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(stringr)
+library(ggplot2)
+library(ggcorrplot)
+library(scales)
+library(patchwork)
+library(RColorBrewer)
+library(tidytext)
+library(tm)
+library(wordcloud)
+library(textdata)
+library(sentimentr)
+library(topicmodels)
+library(triangle)
+library(fitdistrplus)
+library(ggridges)
+library(prophet)
+library(survival)
+library(survminer)
+library(ggsurvfit)
+library(rfm)
+library(arules)
+library(arulesViz)
+library(knitr)
+library(kableExtra)
+library(DT)
+library(plotly)
+
+knitr::opts_chunk$set(
+  fig.align  = "center",
+  out.width  = "100%",
+  dpi        = 150
+)
+
+theme_ndmc <- theme_minimal(base_size = 12) +
+  theme(
+    plot.title    = element_text(face = "bold", size = 14,
+                                 colour = "#1F4E79"),
+    plot.subtitle = element_text(size = 11, colour = "#595959"),
+    plot.caption  = element_text(size = 8,  colour = "#595959"),
+    axis.title    = element_text(face = "bold"),
+    legend.position  = "bottom",
+    panel.grid.minor = element_blank()
+  )
+
+file_path <- "/Users/danieloyetoro/Downloads/LBS/YEAR 2/DA/TAKEHOME EXAM/dataybl.xlsx"
+```
+
+# 1. Executive Summary
+
+This report presents a cross-platform data analytics study of a
+Lagos-based Nigerian entertainment news and lifestyle media company
+that publishes media content daily across four platforms
+simultaneously: a WordPress website, Facebook, Instagram, and Twitter/X. The organisation, which has been operating since 2013,
+generates revenue through Google AdSense, platform-native advertising,
+sponsored content partnerships, and direct advertiser relationships.
+To protect commercial confidentiality, the organisation is not
+identified by name in this report.
+
+Five advanced analytical techniques were applied to real cross-platform
+data spanning 2020 to 2026, drawing on 198 text documents across four platforms comprising 
+39 website articles selected randomly, 61 Instagram posts and 
+50 Facebook posts selected by top reach, and 50 Twitter/X tweets 
+selected by top impressions; supplemented by 40 months of revenue 
+records, 1,216 days of website traffic, a purposive sample of 107 
+advertiser clients drawn from a broader base of approximately 1,826, 
+and 500 content path observations from Google Analytics 4.
+
+Sentiment analysis reveals that Facebook generates the most positive
+audience reaction at 56% positive sentiment, while Twitter/X is the
+most polarising platform with the highest negative sentiment at 28%.
+Monte Carlo simulation across 10,000 runs places the organisation's
+most likely monthly profit at ₦26.3 million, with a pessimistic floor
+of ₦12.6 million and an optimistic ceiling of ₦39.7 million, with Instagram Sponsored Posts identified as the single most volatile
+revenue stream. Prophet forecasting reveals a sustained downward trend
+in website traffic since 2023, with daily views projected to decline
+from a mean of 83,250 to approximately 27,813 by May 2026, driven by
+a structural shift in audience consumption toward social platforms.
+People analytics exposes a critical commercial vulnerability: 70.1%
+of the organisation's 107 advertiser clients have churned, with
+survival probability falling below 50% by the 18-month mark.
+Association rules confirm that Music and Relationships content
+co-occur most strongly in browsing sessions, followed by Celebrity
+Gist and Relationships, suggesting a clear content clustering
+opportunity.
+
+The overarching recommendation is that the organisation must urgently
+implement a social-first content strategy to capture the audience
+migrating away from the website, while simultaneously launching a
+structured advertiser retention programme targeting the 21 At Risk
+clients identified by RFM analysis before they join the 75 already
+inactive.
+
+---
+
+# 2. Professional Disclosure
+
+## 2.1 Role and Organisation
+
+I serve as the **Digital Media Manager and Content Strategist** at a
+Lagos-based Nigerian digital media and PR company
+that has been operating since 2013. The organisation publishes original
+content daily across five platforms simultaneously: a self-hosted
+WordPress website, Facebook, Instagram, Twitter/X, and WhatsApp. It
+generates revenue through Google AdSense, Instagram sponsored content, branded posts, direct
+advertiser partnerships, and display advertising. The organisation
+has an established audience base predominantly in Nigeria with
+significant diaspora reach across the United Kingdom, United States,
+Canada, and Ghana. To protect commercial confidentiality, the
+organisation is referred to generically throughout this report rather
+than by its trading name.
+
+## 2.2 Technique Justifications
+
+**Text Analytics and Sentiment Analysis:** As Digital Media Manager,
+understanding how audiences emotionally respond to different content
+categories is central to editorial planning. By analysing the sentiment
+of post captions and audience comments across platforms, I can identify
+which content categories generate positive audience reactions and which
+topics require more careful framing. This directly informs daily
+publishing decisions.
+
+**Monte Carlo Simulation:** The company's revenue arrives from multiple
+uncertain streams, AdSense earnings fluctuate with traffic and dollar
+exchange rates, sponsored content income varies month to month, and
+platform monetisation is unpredictable. Monte Carlo simulation
+quantifies the range of possible monthly profit outcomes and identifies
+which revenue stream contributes most to financial uncertainty. This
+supports content investment decisions.
+
+**Advanced Forecasting with Prophet:** Forecasting future website
+traffic and cross-platform audience reach allows the company to plan
+content calendars, negotiate ad inventory in advance, and prepare for
+seasonal traffic spikes around events like BBNaija premieres, AFCON
+tournaments, and award seasons.
+
+**Customer and People Analytics:** The company's advertiser clients are
+its most commercially significant relationships. Analysing client
+retention, churn risk, lifetime value, and RFM segments allows them
+to identify which clients to prioritise for relationship management and
+where to focus business development efforts.
+
+**Association Rules:** Understanding which content categories audiences
+consume together in the same browsing session enables the company to
+optimise internal linking, plan content scheduling, and sequence social
+media posts strategically.
+
+---
+
+# 3. Data Collection and Sampling
+
+## 3.1 Primary Datasets
+
+```{r data-provenance-table}
+tibble(
+  Dataset = c(
+    "Website article performance",
+    "Instagram post performance",
+    "Facebook post performance",
+    "Twitter/X post performance",
+    "Revenue and cost records",
+    "Cross-platform traffic",
+    "Advertiser client records",
+    "Content path data"
+  ),
+  Source = c(
+    "Google Analytics 4",
+    "Instagram Insights",
+    "Meta Business Suite",
+    "X Analytics",
+    "Internal financial records",
+    "GA4 + Platform Insights",
+    "Internal campaign records",
+    "GA4 Pages and Screens"
+  ),
+  Period = c(
+    "2023–2026",
+    "May 2025–Apr 2026",
+    "May 2025–Apr 2026",
+    "May 2025–Apr 2026",
+    "2023–2026",
+    "Jan 2023–Apr 2026",
+    "2020–2026",
+    "Mar–Apr 2026"
+  )
+) %>%
+  kable(caption = "Primary Datasets Used in This Analysis") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE
+  )
+```
+
+## 3.2 Data Provenance
+
+All datasets were collected directly from platform dashboards operated
+by the organisation. Google Analytics 4 data was exported from the
+organisation's GA4 property. Social media data was exported from Meta
+Business Suite, Instagram Professional Dashboard, and X Analytics.
+Financial data was reconstructed from Google AdSense records, payment
+receipts, and internal expense logs. Advertiser client data was
+compiled from WhatsApp campaign records, direct message histories,
+and bank transfer records with client identities anonymised to
+CLIENT-001 format.
+
+No personally identifiable information was included in any dataset.
+Social media data represents aggregated post-level performance not
+individual user records. Advertiser records were anonymised prior to
+analysis. The organisation's identity has been withheld from this
+published report to protect commercial confidentiality, in accordance
+with standard academic research practice. The author confirms that
+written consent to use and publish this data in anonymised form was
+obtained from the organisation prior to submission.
+
+## 3.3 Sampling Justification
+
+Each dataset was sampled using a method appropriate to its source
+and analytical purpose.
+
+Website articles: 39 article URLs were selected randomly from the
+organisation's published content archive on Google Analytics 4,
+covering the period January 2023 to April 2026. Random selection
+was used to avoid cherry-picking high-performing content and to
+ensure the sample reflects the typical range of content published
+rather than only exceptional performers.
+
+Instagram posts: 61 posts were selected by ranking all available
+posts by reach within the export window of January 2025 to April
+2026 and retaining the top performers. Reach was chosen as the
+selection criterion because it represents the broadest measure of
+content exposure on the platform, ensuring the sample captures
+posts with sufficient audience signal for meaningful sentiment and
+engagement analysis. The export window was constrained to January
+2025 to April 2026 due to Instagram Insights data retention
+limitations.
+
+Facebook posts: 50 posts were selected by ranking all available
+posts by reach within the export window of January 2025 to April
+2026 and retaining the top performers. The same rationale applied
+as for Instagram; reach provides the most reliable indicator of
+content exposure and audience signal. The export window reflects
+Meta Business Suite data availability for this property.
+
+Twitter/X posts: 50 tweets were selected by ranking all available
+tweets by impressions within the export window of May 2025 to April
+2026 and retaining the top performers. Impressions was used as the
+selection criterion as it is the primary reach metric on the
+platform. The shorter export window reflects X Analytics data
+retention constraints for this account.
+
+Revenue and cost records: All available monthly financial records
+from January 2023 to April 2026 were used, producing 40 monthly
+observations. No sampling was applied, this represents the complete
+available financial history for the organisation across that period,
+drawn from Google AdSense records, platform monetisation dashboards,
+and internal expense logs.
+
+Cross-platform traffic time series: The complete daily traffic
+history from Google Analytics 4 was used for the website component,
+covering January 2023 to April 2026 and producing 1,216 daily
+observations. Social media time series data was constrained to the
+available export windows, January 2025 to April 2026 for Facebook
+and Instagram, and May 2025 to April 2026 for Twitter/X.. due to
+platform data retention limitations. The website daily history
+serves as the primary Prophet forecasting variable given its longer
+and more complete time range.
+
+Advertiser client records: The organisation's client base numbers
+approximately 1,826 advertisers accumulated since 2013. A purposive
+sample of 107 clients was constructed using a mixed approach: the
+top 10 clients by total historical spend were selected deliberately
+to ensure the highest-value relationships were represented in the
+analysis, while the remaining 97 were selected randomly from the
+broader client population. This approach balances the need to
+capture commercially significant clients with the statistical
+benefits of random selection for the broader sample. The sample was
+drawn from systematically retrievable records including payment
+receipts, WhatsApp campaign logs, and direct message histories.
+While the 107-client sample does not represent the complete client
+population, it captures sufficient behavioural depth across business
+categories and campaign histories to support meaningful RFM
+segmentation, survival analysis, and CLV modelling.
+
+Association rules data: Pages were selected from the GA4 Pages and
+Screens report covering March to April 2026, the maximum available
+window for the Explore section of GA4. The top pages by total
+sessions were retained after filtering for pages with a minimum of
+two sessions to ensure co-consumption signal was present, producing
+500 page observations for analysis. The two-month window reflects
+GA4 Explore data retention constraints for standard properties
+rather than a deliberate sampling decision.
+
+---
+
+# 4. Data Description
+
+```{r load-data}
+website   <- read_excel(file_path, sheet = "website")
+instagram <- read_excel(file_path, sheet = "instagram")
+facebook  <- read_excel(file_path, sheet = "facebook")
+x_twitter <- read_excel(file_path, sheet = "x")
+revenue   <- read_excel(file_path, sheet = "revenue_cost_montecarlo")
+traffic   <- read_excel(file_path, sheet = "traffic_timeseries_prophet")
+clients   <- read_excel(file_path, sheet = "people_analytics")
+assoc     <- read_excel(file_path, sheet = "association_rules")
+
+cat("Datasets loaded:\n")
+cat("Website articles:      ", nrow(website),   "\n")
+cat("Instagram posts:       ", nrow(instagram), "\n")
+cat("Facebook posts:        ", nrow(facebook),  "\n")
+cat("Twitter/X posts:       ", nrow(x_twitter), "\n")
+cat("Revenue months:        ", nrow(revenue),   "\n")
+cat("Traffic time series:   ", nrow(traffic),   "\n")
+cat("Advertiser clients:    ", nrow(clients),   "\n")
+cat("Association rules data:", nrow(assoc),     "\n")
+```
+
+```{r clean-data}
+# ── Website ──────────────────────────────────────────────────
+website <- website %>%
+  mutate(
+    publish_date = as.Date(publish_date),
+    article_category = as.factor(article_category),
+    views = as.numeric(views),
+    active_users = as.numeric(active_users),
+    views_per_active_user = as.numeric(views_per_active_user),
+    average_engagement_time_per_active_user_sec =
+      as.numeric(average_engagement_time_per_active_user_sec),
+    event_count = as.numeric(event_count)
+  ) %>%
+  filter(!is.na(views), views > 0)
+
+# ── Instagram ────────────────────────────────────────────────
+instagram <- instagram %>%
+  mutate(
+    article_category = as.factor(article_category),
+    content_type = as.factor(content_type),
+    across(c(views, reach, likes, comments,
+             shares, saves, engagement_rate_pct), as.numeric)
+  ) %>%
+  filter(!is.na(reach), reach > 0)
+
+# ── Facebook ─────────────────────────────────────────────────
+facebook <- facebook %>%
+  mutate(
+    date = as.Date(date),
+    article_category = as.factor(article_category),
+    content_type = as.factor(content_type),
+    across(c(views, reach, reactions, comments,
+             shares, total_clicks,
+             engagement_rate_pct), as.numeric),
+    seconds_viewed = as.numeric(seconds_viewed),
+    average_seconds_viewed = as.numeric(average_seconds_viewed)
+  ) %>%
+  filter(!is.na(reach), reach > 0)
+
+# ── Twitter/X ────────────────────────────────────────────────
+x_twitter <- x_twitter %>%
+  mutate(
+    article_category = as.factor(article_category),
+    content_type = as.factor(content_type),
+    across(c(impressions, likes, engagements,
+             bookmarks, shares, replies,
+             reposts, engagement_rate_pct), as.numeric)
+  ) %>%
+  filter(!is.na(impressions), impressions > 0)
+
+# ── Revenue ──────────────────────────────────────────────────
+revenue <- revenue %>%
+  mutate(
+    year = as.integer(year),
+    across(where(is.character), ~ na_if(.x, "")),
+    across(c(total_revenue_ngn, total_cost_ngn,
+             net_profit_ngn, profit_margin_pct,
+             ngn_usd_rate), as.numeric)
+  ) %>%
+  filter(!is.na(total_revenue_ngn))
+
+# ── Traffic ──────────────────────────────────────────────────
+traffic <- traffic %>%
+  mutate(
+    Date = as.Date(Date),
+    across(-Date, as.numeric)
+  ) %>%
+  arrange(Date) %>%
+  filter(!is.na(Date), !is.na(website_views))
+
+# ── Clients ──────────────────────────────────────────────────
+clients <- clients %>%
+  mutate(
+    first_campaign_date = as.Date(first_campaign_date),
+    last_campaign_date  = as.Date(last_campaign_date),
+    churn_date = if_else(
+      churn_flag == 1,
+      last_campaign_date,
+      as.Date(NA)
+    ),
+    business_category = as.factor(business_category),
+    business_size     = as.factor(business_size),
+    active_inactive   = as.factor(active_inactive),
+    churn_flag        = as.integer(churn_flag),
+    total_campaign_runs = as.integer(total_campaign_runs),
+    across(c(total_spend_ngn,
+             average_spend_per_campaign_ngn,
+             days_since_last_campaign), as.numeric)
+  ) %>%
+  filter(!is.na(first_campaign_date))
+
+# ── Association rules ────────────────────────────────────────
+assoc <- assoc %>%
+  rename(
+    page_path      = Page_path_and_screen_class,
+    views_per_sess = views_per_session,
+    avg_eng_time   = average_engagement_time_per_session
+  ) %>%
+  mutate(
+    sessions       = as.numeric(sessions),
+    views_per_sess = as.numeric(views_per_sess),
+    avg_eng_time   = as.numeric(avg_eng_time)
+  ) %>%
+  filter(!is.na(sessions), sessions >= 2)
+# ── Standardise category names across all platforms ──────────
+website <- website %>%
+  mutate(article_category = str_to_title(str_trim(
+    as.character(article_category))))
+
+instagram <- instagram %>%
+  mutate(article_category = str_to_title(str_trim(
+    as.character(article_category))))
+
+facebook <- facebook %>%
+  mutate(article_category = str_to_title(str_trim(
+    as.character(article_category))))
+
+x_twitter <- x_twitter %>%
+  mutate(article_category = str_to_title(str_trim(
+    as.character(article_category))))
+
+cat("All datasets cleaned successfully\n")
+```
+
+```{r data-overview}
+# ── Content distribution across platforms ─────────────────────
+all_content <- bind_rows(
+  website   %>%
+    select(article_category) %>%
+    mutate(platform = "Website"),
+  instagram %>%
+    select(article_category) %>%
+    mutate(platform = "Instagram"),
+  facebook  %>%
+    select(article_category) %>%
+    mutate(platform = "Facebook"),
+  x_twitter %>%
+    select(article_category) %>%
+    mutate(platform = "Twitter/X")
+)
+
+all_content %>%
+  count(platform, article_category) %>%
+  pivot_wider(
+    names_from  = platform,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  kable(
+    caption = "Content Distribution by Category and Platform"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE
+  )
+
+# ── Website numeric summary ───────────────────────────────────
+website %>%
+  select(views, active_users,
+         views_per_active_user,
+         average_engagement_time_per_active_user_sec) %>%
+  summary() %>%
+  kable(caption = "Website Article Performance — Summary Statistics") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE
+  )
+
+# ── Engagement rate summary across platforms ──────────────────
+bind_rows(
+  instagram %>%
+    summarise(
+      platform = "Instagram",
+      avg_engagement_rate = mean(engagement_rate_pct,
+                                 na.rm = TRUE),
+      median_engagement_rate = median(engagement_rate_pct,
+                                      na.rm = TRUE),
+      max_engagement_rate = max(engagement_rate_pct,
+                                na.rm = TRUE)
+    ),
+  facebook %>%
+    summarise(
+      platform = "Facebook",
+      avg_engagement_rate = mean(engagement_rate_pct,
+                                 na.rm = TRUE),
+      median_engagement_rate = median(engagement_rate_pct,
+                                      na.rm = TRUE),
+      max_engagement_rate = max(engagement_rate_pct,
+                                na.rm = TRUE)
+    ),
+  x_twitter %>%
+    summarise(
+      platform = "Twitter/X",
+      avg_engagement_rate = mean(engagement_rate_pct,
+                                 na.rm = TRUE),
+      median_engagement_rate = median(engagement_rate_pct,
+                                      na.rm = TRUE),
+      max_engagement_rate = max(engagement_rate_pct,
+                                na.rm = TRUE)
+    )
+) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 2))) %>%
+  kable(
+    col.names = c("Platform", "Avg Engagement %",
+                  "Median Engagement %", "Max Engagement %"),
+    caption = "Engagement Rate Summary by Platform"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE
+  )
+```
+
+---
+
+# 5. Text Analytics and Sentiment Analysis
+
+## 5.1 Theory
+
+Text analytics encompasses the computational analysis of unstructured
+written language to extract patterns, themes, and sentiment signals that
+would be invisible to manual review. This analysis applies three
+complementary techniques. Sentiment analysis using the sentimentr
+package assigns each text document a polarity score based on its
+emotional content, classifying it as Positive, Negative, or Neutral
+while accounting for negations and amplifiers in natural language.
+TF-IDF (Term Frequency–Inverse Document Frequency) identifies the words
+that are most distinctive to each content category relative to the
+entire corpus, revealing which terms best characterise each topic area.
+Latent Dirichlet Allocation (LDA) is an unsupervised topic modelling
+technique that discovers hidden thematic structures in a collection of
+documents by assuming each document is a mixture of latent topics and
+each topic is a distribution over words (Blei et al., 2003). Together
+these three methods provide both a top-down sentiment view and a
+bottom-up thematic view of The company's content landscape.
+
+## 5.2 Business Justification
+
+As Digital Media Manager, the ability to systematically measure
+audience emotional response to content categories is essential for
+evidence-based editorial planning. Manually reading thousands of
+comments across four platforms to gauge audience mood is neither
+scalable nor objective. Sentiment analysis automates this process
+across 198 documents simultaneously, producing a platform-by-platform
+and category-by-category breakdown of audience reaction that directly
+informs which content to prioritise, which to approach carefully, and
+which platforms to use for which content types. TF-IDF reveals the
+vocabulary fingerprint of each content category, helping editors write
+headlines and captions that align with the language patterns audiences
+actually respond to. LDA topic modelling identifies whether The company's
+content is clustering around the themes its audience expects or drifting
+into territory that generates weaker engagement.
+
+## 5.3 Analysis
+
+```{r text-prep}
+# ── Combine text across platforms ─────────────────────────────
+# Website: headline as topic text
+# Instagram/Facebook: sample_comment as sentiment text
+# Twitter/X: sample_reply as sentiment text
+
+text_combined <- bind_rows(
+  website %>%
+    transmute(
+      platform          = "Website",
+      article_category  = as.character(article_category),
+      text_sentiment    = article_headline,
+      text_topics       = article_headline
+    ),
+  instagram %>%
+    transmute(
+      platform          = "Instagram",
+      article_category  = as.character(article_category),
+      text_sentiment    = sample_comment,
+      text_topics       = post_headline_or_caption
+    ),
+  facebook %>%
+    transmute(
+      platform          = "Facebook",
+      article_category  = as.character(article_category),
+      text_sentiment    = sample_comment,
+      text_topics       = post_headline_or_caption
+    ),
+  x_twitter %>%
+    transmute(
+      platform          = "Twitter/X",
+      article_category  = as.character(article_category),
+      text_sentiment    = sample_reply,
+      text_topics       = tweet_text_or_headline
+    )
+) %>%
+  mutate(
+    text_sentiment = str_squish(
+      str_replace_all(text_sentiment,
+                      "[^[:alnum:][:space:]']", " ")),
+    text_topics = str_squish(
+      str_replace_all(text_topics,
+                      "[^[:alnum:][:space:]']", " "))
+  ) %>%
+  filter(
+    !is.na(text_sentiment),
+    str_length(text_sentiment) > 3
+  )
+
+cat("Total documents for text analysis:", nrow(text_combined), "\n")
+cat("By platform:\n")
+print(table(text_combined$platform))
+```
+
+```{r sentiment}
+# ── Sentiment scoring with sentimentr ─────────────────────────
+sentiment_results <- text_combined %>%
+  mutate(
+    sentiment_score = sentiment_by(text_sentiment)$ave_sentiment,
+    sentiment_label = case_when(
+      sentiment_score >  0.05 ~ "Positive",
+      sentiment_score < -0.05 ~ "Negative",
+      TRUE                    ~ "Neutral"
+    )
+  )
+
+# ── Summary table ─────────────────────────────────────────────
+sentiment_results %>%
+  count(platform, sentiment_label) %>%
+  group_by(platform) %>%
+  mutate(pct = round(n / sum(n) * 100, 1)) %>%
+  pivot_wider(
+    names_from  = sentiment_label,
+    values_from = c(n, pct),
+    values_fill = 0
+  ) %>%
+  kable(caption = "Sentiment Distribution by Platform") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE
+  )
+```
+
+```{r sentiment-plots}
+# ── Plot 1: Sentiment by platform ─────────────────────────────
+p_sent_platform <- sentiment_results %>%
+  count(platform, sentiment_label) %>%
+  group_by(platform) %>%
+  mutate(pct = n / sum(n) * 100) %>%
+  ggplot(aes(x = platform,
+             y = pct,
+             fill = sentiment_label)) +
+  geom_col(position = "stack", width = 0.6) +
+  scale_fill_manual(values = c(
+    "Positive" = "#2E86AB",
+    "Neutral"  = "#A8DADC",
+    "Negative" = "#E63946"
+  )) +
+  labs(
+    title    = "Audience Sentiment Distribution by Platform",
+    subtitle = "Based on reader comments and post captions",
+    x = NULL, y = "Percentage (%)",
+    fill     = "Sentiment",
+    caption  = "Source: The Company's cross-platform data 2020–2026"
+  ) +
+  theme_ndmc
+
+# ── Plot 2: Sentiment by content category ─────────────────────
+p_sent_category <- sentiment_results %>%
+  count(article_category, sentiment_label) %>%
+  group_by(article_category) %>%
+  mutate(pct = n / sum(n) * 100) %>%
+  ggplot(aes(x = reorder(article_category, pct),
+             y = pct,
+             fill = sentiment_label)) +
+  geom_col(position = "stack", width = 0.6) +
+  scale_fill_manual(values = c(
+    "Positive" = "#2E86AB",
+    "Neutral"  = "#A8DADC",
+    "Negative" = "#E63946"
+  )) +
+  coord_flip() +
+  labs(
+    title    = "Sentiment by Content Category",
+    subtitle = "Which categories generate the most positive reaction?",
+    x = NULL, y = "Percentage (%)",
+    fill     = "Sentiment",
+    caption  = "Source: The Company's cross-platform data 2020–2026"
+  ) +
+  theme_ndmc
+
+p_sent_platform / p_sent_category
+```
+
+```{r tfidf}
+# ── Custom stop words ─────────────────────────────────────────
+custom_stops <- bind_rows(
+  stop_words,
+  tibble(
+    word = c("the", "nigeria", "nigerian", "naija",
+             "online", "read", "click", "link", "bio",
+             "tap", "na", "dey", "dem", "una", "sef",
+             "don", "go", "wan", "sha", "oo", "oh"),
+    lexicon = "custom"
+  )
+)
+
+# ── TF-IDF ────────────────────────────────────────────────────
+tfidf_result <- text_combined %>%
+  mutate(doc_id = row_number()) %>%
+  unnest_tokens(word, text_topics) %>%
+  anti_join(custom_stops, by = "word") %>%
+  filter(
+    str_length(word) > 2,
+    !str_detect(word, "^[0-9]+$")
+  ) %>%
+  count(article_category, word, sort = TRUE) %>%
+  bind_tf_idf(word, article_category, n)
+
+# ── Top 3 terms per category ──────────────────────────────────
+tfidf_result %>%
+  group_by(article_category) %>%
+  slice_max(tf_idf, n = 5) %>%
+  ungroup() %>%
+  ggplot(aes(
+    x    = reorder_within(word, tf_idf, article_category),
+    y    = tf_idf,
+    fill = article_category
+  )) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~article_category, scales = "free_y", ncol = 2) +
+  coord_flip() +
+  scale_x_reordered() +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title   = "Top Distinctive Terms by Content Category (TF-IDF)",
+    subtitle = "Words that best characterise each content category on The Company",
+    x = NULL, y = "TF-IDF Score",
+    caption = "Source: The Company's cross-platform content 2020–2026"
+  ) +
+  theme_ndmc
+```
+
+```{r wordcloud}
+# ── Word cloud of most frequent terms ─────────────────────────
+word_freq <- text_combined %>%
+  unnest_tokens(word, text_topics) %>%
+  anti_join(custom_stops, by = "word") %>%
+  filter(
+    str_length(word) > 2,
+    !str_detect(word, "^[0-9]+$")
+  ) %>%
+  count(word, sort = TRUE) %>%
+  slice_max(n, n = 80)
+
+set.seed(42)
+wordcloud(
+  words  = word_freq$word,
+  freq   = word_freq$n,
+  min.freq = 1,
+  max.words = 80,
+  random.order = FALSE,
+  colors = brewer.pal(8, "Dark2"),
+  scale  = c(4, 0.5)
+)
+title("Most Frequent Words Across The Company's Content",
+      col.main = "#1F4E79")
+```
+
+```{r lda}
+# ── Build document term matrix ────────────────────────────────
+dtm <- text_combined %>%
+  mutate(doc_id = row_number()) %>%
+  unnest_tokens(word, text_topics) %>%
+  anti_join(custom_stops, by = "word") %>%
+  filter(
+    str_length(word) > 2,
+    !str_detect(word, "^[0-9]+$")
+  ) %>%
+  count(doc_id, word) %>%
+  cast_dtm(doc_id, word, n)
+
+# Remove empty documents
+dtm <- dtm[rowSums(as.matrix(dtm)) > 0, ]
+
+# ── Fit LDA with k=5 topics ───────────────────────────────────
+set.seed(42)
+lda_model <- LDA(dtm, k = 5,
+                 control = list(seed = 42))
+
+# ── Extract and plot top terms per topic ──────────────────────
+tidy(lda_model, matrix = "beta") %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 8) %>%
+  ungroup() %>%
+  mutate(topic = paste("Topic", topic)) %>%
+  ggplot(aes(
+    x    = reorder_within(term, beta, topic),
+    y    = beta,
+    fill = topic
+  )) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~topic, scales = "free_y", ncol = 2) +
+  coord_flip() +
+  scale_x_reordered() +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title    = "LDA Topic Model — Top Terms per Topic (k = 5)",
+    subtitle = "Five latent content themes in The Company's cross-platform publishing",
+    x = NULL, y = "Term Probability (Beta)",
+    caption  = "Source: The Company's cross-platform content 2020–2026"
+  ) +
+  theme_ndmc
+```
+
+## 5.4 Interpretation
+
+Of the 39 website articles selected, 37 passed the text cleaning 
+filter after removing entries with missing or insufficiently long 
+text fields, producing a final corpus of 198 documents across the 
+four platforms.
+
+The sentiment analysis of 198 text documents across four platforms
+reveals a clear platform hierarchy in audience emotional response.
+Facebook generates the most positive sentiment at 56% positive and only
+16% negative, suggesting that The Company's Facebook audience is highly
+receptive to content and responds with enthusiasm rather than criticism.
+This may reflect the more communal, sharing-oriented nature of Facebook
+where users engage with content they endorse. Instagram follows at 47.5%
+positive, while the website sits at 48.6% positive but carries a
+notably high negative rate of 29.7%, indicating that website readers
+who leave comments tend to be more opinionated and critical than social
+media audiences. Twitter/X is the most polarised platform with only 40%
+positive and 28% negative sentiment, consistent with the platform's
+culture of debate and callout behaviour in Nigerian digital spaces.
+
+For a Digital Media Manager, this finding carries a direct operational
+implication: content that is likely to be divisive or controversial
+should be promoted more heavily on Facebook where the audience is more
+supportive, while Twitter/X should be used strategically for content
+that invites debate, such as Sports results, political commentary, and
+viral reaction pieces where high engagement, even if negative, drives
+reach through replies and reposts.
+
+The TF-IDF analysis confirms the content character of each category.
+The BBNaija category is defined by emotionally charged words like
+"heartbreaking", "knowing", and "shoutout", reflecting the dramatic
+interpersonal storylines that drive engagement. The Sports category
+centres on player names like "Victor" and "Osimhen" alongside terms
+like "championship" and "lambaste", confirming that individual athlete
+narratives rather than match results drive The Company's sports content.
+The Viral category clusters around relationship and gender-related terms
+— "lady", "shares", "woman", "boyfriend", "proposal", revealing that
+The Company's most viral content is predominantly relationship drama and
+social commentary on women and men, not celebrity music news as might
+be assumed.
+
+The word cloud reinforces this finding dramatically. The largest and
+most prominent terms across all The Company's content are "lady", "shares",
+"video", "women", "reveals", "davido", and "reacts" — a vocabulary
+dominated by celebrity reaction content, women-centred narratives, and
+viral video stories. This is the true editorial DNA of the company: not
+music news or sports coverage, but real-time reaction to celebrity
+behaviour with a strong focus on gender dynamics and relationship drama.
+
+The LDA topic model identifies five coherent latent themes. Topic 1
+clusters around celebrity video content and viral moments featuring
+names like Davido, Mohbad, and Anita Brown. Topic 2 captures the
+aspirational and financial side of entertainment , featuring "million",
+"women", "reveals", "money", and "singer" — reflecting content about
+celebrity wealth and achievement. Topic 3 groups social reaction
+content around sharing behaviour, family, and son-related narratives.
+Topic 4 is a relationship and gender dynamics cluster centred on "lady",
+"god", "wife", "reacts", and "husband". Topic 5 blends music, crime,
+and social commentary featuring "police", "married", and "bobrisky" ,suggesting a current affairs meets celebrity culture hybrid theme that
+resonates strongly with Nigerian audiences.
+
+The practical recommendation from this analysis is that The Company should
+consciously organise its content calendar around these five confirmed
+themes rather than the traditional category labels, since the data shows
+that audience engagement does not follow neat editorial categories but
+rather flows around recurring narrative archetypes that cut across
+multiple categories simultaneously.
+
+---
+
+# 6. Monte Carlo Simulation
+
+## 6.1 Theory
+
+Monte Carlo simulation is a computational technique that models
+uncertainty by running thousands of iterations of a process using
+randomly sampled inputs drawn from probability distributions fitted to
+historical data. Rather than producing a single deterministic forecast,
+it generates a distribution of possible outcomes that reflects the
+inherent variability in the underlying inputs (Vose, 2008). In a
+financial context, this allows an organisation to move beyond asking
+"what will our profit be next month?" to asking "what is the
+probability that our profit falls below a given threshold?" The outputs
+are typically summarised using percentiles: P10 represents the outcome
+that will be exceeded 90% of the time — the pessimistic scenario — P50
+is the median most likely outcome, and P90 is the optimistic outcome
+exceeded only 10% of the time. A tornado chart complements the
+simulation by ranking uncertain input variables by their contribution
+to output variance, identifying which inputs management should monitor
+most closely.
+
+## 6.2 Business Justification
+
+The Company's revenue arrives from at least six distinct streams,
+Google AdSense, website direct advertising, Instagram sponsored posts,
+Facebook branded content, Twitter sponsored tweets, and other income.. 
+each of which fluctuates independently based on advertiser demand,
+content performance, platform algorithm changes, and the Nigerian Naira
+to US Dollar exchange rate. Managing a media business with this level
+of revenue complexity using only monthly averages or intuitive estimates
+creates dangerous blind spots. A month where Instagram sponsored income
+collapses while AdSense performs well may still look acceptable in
+aggregate but may signal a structural shift in how advertisers value
+the platform. Monte Carlo simulation addresses this by modelling each
+revenue stream's historical variability simultaneously and producing a
+realistic range of monthly profit scenarios. This allows The Company's
+management to make content investment decisions.. such as how much to
+spend on video production or social media boosting.. with an explicit
+understanding of the downside risk they are absorbing.
+
+## 6.3 Analysis
+
+```{r monte-carlo-prep}
+# ── Extract revenue and cost vectors ─────────────────────────
+# Use total_revenue_ngn and total_cost_ngn directly
+# as these are already computed in your Excel sheet
+
+rev_vec  <- revenue$total_revenue_ngn[
+  !is.na(revenue$total_revenue_ngn) &
+    revenue$total_revenue_ngn > 0]
+
+cost_vec <- revenue$total_cost_ngn[
+  !is.na(revenue$total_cost_ngn) &
+    revenue$total_cost_ngn > 0]
+
+profit_vec <- revenue$net_profit_ngn[
+  !is.na(revenue$net_profit_ngn)]
+
+cat("Monthly revenue observations: ", length(rev_vec),  "\n")
+cat("Monthly cost observations:    ", length(cost_vec), "\n")
+cat("Revenue range (NGN millions):\n")
+cat("  Min:", scales::comma(min(rev_vec)/1e6), "M\n")
+cat("  Max:", scales::comma(max(rev_vec)/1e6), "M\n")
+cat("  Mean:", scales::comma(mean(rev_vec)/1e6), "M\n")
+```
+
+```{r monte-carlo-sim}
+set.seed(42)
+n_sims <- 10000
+
+# ── Simulate revenue and costs using historical mean and SD ───
+sim_revenue <- rnorm(
+  n_sims,
+  mean = mean(rev_vec,  na.rm = TRUE),
+  sd   = sd(rev_vec,    na.rm = TRUE)
+)
+
+sim_costs <- rnorm(
+  n_sims,
+  mean = mean(cost_vec, na.rm = TRUE),
+  sd   = sd(cost_vec,   na.rm = TRUE)
+)
+
+# Ensure no negative values
+sim_revenue <- pmax(sim_revenue, 0)
+sim_costs   <- pmax(sim_costs,   0)
+sim_profit  <- sim_revenue - sim_costs
+
+# ── P10 / P50 / P90 table ────────────────────────────────────
+pcts <- quantile(sim_profit,
+                 probs = c(0.10, 0.50, 0.90))
+
+tibble(
+  Scenario = c(
+    "Pessimistic — P10 (bad month, 1 in 10 chance)",
+    "Most Likely — P50 (typical month)",
+    "Optimistic  — P90 (great month, 1 in 10 chance)"
+  ),
+  `Monthly Profit (NGN)` = scales::comma(round(pcts)),
+  `Monthly Profit (USD at current rate)` = scales::comma(
+    round(pcts / mean(revenue$ngn_usd_rate, na.rm=TRUE)))
+) %>%
+  kable(
+    caption = "Monte Carlo Simulation — P10 / P50 / P90 Profit Scenarios (10,000 runs)"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE
+  )
+```
+
+```{r monte-carlo-histogram}
+# ── Profit distribution histogram ────────────────────────────
+tibble(profit = sim_profit) %>%
+  ggplot(aes(x = profit / 1e6)) +
+  geom_histogram(bins = 80,
+                 fill    = "#2E86AB",
+                 colour  = "white",
+                 alpha   = 0.85) +
+  geom_vline(xintercept = pcts["10%"] / 1e6,
+             colour = "#E63946",
+             linetype = "dashed",
+             linewidth = 1) +
+  geom_vline(xintercept = pcts["50%"] / 1e6,
+             colour = "#2D6A4F",
+             linetype = "solid",
+             linewidth = 1) +
+  geom_vline(xintercept = pcts["90%"] / 1e6,
+             colour = "#F4A261",
+             linetype = "dashed",
+             linewidth = 1) +
+  labs(
+    title    = "Monte Carlo — Monthly Profit Distribution (10,000 simulations)",
+    subtitle = "Red dashed = P10 | Green solid = P50 | Orange dashed = P90",
+    x        = "Monthly Net Profit (₦ Millions)",
+    y        = "Frequency",
+    caption  = "Source: The Company's revenue and cost records 2023–2026"
+  ) +
+  theme_ndmc
+```
+
+```{r monte-carlo-revenue-breakdown}
+# ── Historical revenue trend ──────────────────────────────────
+revenue %>%
+  filter(!is.na(total_revenue_ngn)) %>%
+  mutate(month_label = paste(year, month_name, sep = " ")) %>%
+  ggplot(aes(x = seq_along(total_revenue_ngn),
+             y = total_revenue_ngn / 1e6)) +
+  geom_line(colour = "#1F4E79", linewidth = 1) +
+  geom_smooth(method  = "loess",
+              colour  = "#E63946",
+              se      = FALSE,
+              linewidth = 0.8) +
+  labs(
+    title    = "The Company's Monthly Revenue Trend (Historical)",
+    subtitle = "Red smoothed line shows the overall trend direction",
+    x        = "Month (chronological order)",
+    y        = "Total Revenue (₦ Millions)",
+    caption  = "Source: The Company's internal financial records 2023–2026"
+  ) +
+  theme_ndmc
+```
+
+```{r tornado}
+# ── Tornado chart: which revenue stream is most uncertain ─────
+# Use individual revenue columns where available
+rev_stream_cols <- revenue %>%
+  select(
+    website_adsense_ngn,
+    website_direct_ad_ngn,
+    facebook_branded_content_ngn,
+    instagram_sponsored_posts_ngn,
+    twitter_sponsored_tweets_ngn,
+    other_income_total
+  ) %>%
+  summarise(across(everything(),
+                   ~ sd(.x, na.rm = TRUE))) %>%
+  pivot_longer(everything(),
+               names_to  = "stream",
+               values_to = "sd_ngn") %>%
+  mutate(
+    stream = str_replace_all(stream, "_ngn|_total", "") %>%
+      str_replace_all("_", " ") %>%
+      str_to_title()
+  ) %>%
+  arrange(desc(sd_ngn))
+
+rev_stream_cols %>%
+  ggplot(aes(x = reorder(stream, sd_ngn),
+             y = sd_ngn / 1e6)) +
+  geom_col(fill = "#1F4E79", width = 0.6) +
+  coord_flip() +
+  labs(
+    title    = "Tornado Chart — Revenue Uncertainty by Stream",
+    subtitle = "Longer bar = higher month-to-month variability = more risk",
+    x        = NULL,
+    y        = "Standard Deviation (₦ Millions)",
+    caption  = "Source: The Company's revenue records 2023–2026"
+  ) +
+  theme_ndmc
+```
+
+## 6.4 Interpretation
+
+The Monte Carlo simulation, run across 10,000 iterations using
+historical revenue and cost distributions from 40 months of The Company's
+financial records, produces a profit distribution that is broadly
+bell-shaped and centred around ₦26.3 million per month at the P50
+median. The P10 pessimistic scenario places monthly profit at ₦12.6
+million , meaning there is approximately a 1 in 10 chance of a month
+this poor.. while the P90 optimistic scenario reaches ₦39.7 million.
+The spread of approximately ₦27 million between P10 and P90 reflects
+significant operating uncertainty that management must plan for
+explicitly rather than assume away.
+
+The historical revenue trend chart provides important context for these
+figures. Revenue grew strongly from approximately ₦10 million per month
+at the start of 2023 to a peak of nearly ₦50 million around months
+15 to 18 of the observation period, before declining and stabilising
+in the ₦25 to ₦35 million range. The red smoothed trend line confirms
+that after the peak, revenue has been on a gradual downward trajectory,
+which is consistent with the website traffic decline identified by
+Prophet and likely reflects the same structural shift of audience
+attention toward social platforms.
+
+The tornado chart identifies Instagram Sponsored Posts as by far the
+most uncertain revenue stream, with a standard deviation more than
+three times larger than any other individual stream. This is a
+significant and counterintuitive finding given that Instagram also
+shows strong engagement metrics. The high variability in Instagram
+sponsored income likely reflects the irregular and deal-by-deal nature
+of influencer and sponsored content arrangements, months where
+multiple brands activate simultaneously produce very high income, while
+months with no brand partnerships contribute nothing. The practical
+implication is that the firm should prioritise building a pipeline of
+recurring Instagram brand partnerships rather than relying on
+one-off deals, as this would directly reduce the standard deviation
+of the most volatile revenue stream and narrow the P10-P90 spread
+in future simulations.
+
+For operational planning purposes, management should budget against the
+P50 figure of ₦26.3 million as the expected monthly profit and maintain
+a financial buffer equivalent to the P10-P50 gap of approximately ₦13.7
+million to absorb a genuinely bad month without disrupting operations.
+
+---
+
+# 7. Advanced Forecasting with Prophet
+
+## 7.1 Theory
+
+Prophet is an open-source forecasting procedure developed by Facebook's
+Core Data Science team and released publicly in 2017 (Taylor and
+Letham, 2018). It is designed specifically for business time series
+data that exhibits strong seasonal patterns and occasional structural
+breaks caused by external events. Unlike traditional ARIMA models,
+Prophet decomposes a time series into three additive components: a
+piecewise linear or logistic growth trend that automatically detects
+changepoints where the trend direction shifts, a Fourier series-based
+seasonality component that captures weekly and yearly cycles, and a
+holiday effects component that accounts for known external events.
+Prophet is particularly well-suited to daily website traffic data
+because it handles missing values gracefully, is robust to outliers,
+and produces uncertainty intervals that widen appropriately as the
+forecast horizon extends. Model accuracy was evaluated using
+walk-forward cross-validation with an initial training window of 365
+days and rolling 90-day evaluation periods.
+
+## 7.2 Business Justification
+
+Website traffic is the primary driver of The Company's Google AdSense
+revenue and the foundation on which advertiser pricing is negotiated.
+An accurate 90-day traffic forecast allows the editorial team to plan
+content calendars around predicted peak traffic periods, enables the
+business development team to quote realistic audience figures to
+prospective advertisers with confidence intervals rather than
+single-point estimates, and provides early warning of structural
+traffic declines that require strategic intervention. Prophet is
+specifically appropriate for the company because Nigerian entertainment
+traffic follows strong weekly patterns, readers consume more content
+on weekdays during work hours and on Friday evenings, as well as
+strong yearly seasonality driven by Nigerian entertainment calendar
+events including BBNaija season premieres, AFCON tournaments, the
+Headies Awards, and the December festive period.
+
+## 7.3 Analysis
+
+```{r prophet-prep}
+# ── Prepare Prophet dataframe ─────────────────────────────────
+# Prophet requires exactly two columns: ds (date) and y (value)
+prophet_df <- traffic %>%
+  select(ds = Date, y = website_views) %>%
+  filter(!is.na(y), y > 0) %>%
+  arrange(ds)
+
+cat("Prophet input:\n")
+cat("  Observations:", nrow(prophet_df), "\n")
+cat("  Start date:  ", as.character(min(prophet_df$ds)), "\n")
+cat("  End date:    ", as.character(max(prophet_df$ds)), "\n")
+cat("  Mean daily views:", scales::comma(round(mean(prophet_df$y))), "\n")
+cat("  Max daily views: ", scales::comma(max(prophet_df$y)), "\n")
+```
+
+```{r prophet-fit}
+# ── Fit Prophet model ─────────────────────────────────────────
+m <- prophet(
+  prophet_df,
+  yearly.seasonality      = TRUE,
+  weekly.seasonality      = TRUE,
+  daily.seasonality       = FALSE,
+  seasonality.mode        = "multiplicative",
+  changepoint.prior.scale = 0.05
+)
+
+# ── Forecast 90 days ahead ────────────────────────────────────
+future_df <- make_future_dataframe(m, periods = 90)
+forecast_df <- predict(m, future_df)
+
+cat("Forecast generated for 90 days ahead\n")
+cat("Forecast end date:",
+    as.character(max(forecast_df$ds)), "\n")
+```
+
+```{r prophet-plot}
+# ── Main forecast plot ────────────────────────────────────────
+plot(m, forecast_df) +
+  labs(
+    title    = "The Company's Website Traffic Forecast — Next 90 Days",
+    subtitle = paste(
+      "Black dots = actual daily views |",
+      "Blue line = forecast |",
+      "Shaded band = 95% confidence interval"
+    ),
+    x        = "Date",
+    y        = "Daily Website Views",
+    caption  = "Source: GA4 daily traffic Jan 2023–Apr 2026 | Model: Prophet"
+  ) +
+  theme_ndmc
+```
+
+```{r prophet-components}
+# ── Seasonal decomposition ────────────────────────────────────
+prophet_plot_components(m, forecast_df)
+```
+
+```{r prophet-cv}
+# ── Walk-forward cross validation ─────────────────────────────
+df_cv <- cross_validation(
+  m,
+  initial = 365,
+  period  = 90,
+  horizon = 90,
+  units   = "days"
+)
+
+df_perf <- performance_metrics(df_cv)
+
+cat("Prophet Cross-Validation Results:\n")
+cat("  Mean RMSE:", round(mean(df_perf$rmse, na.rm=TRUE), 0),
+    "views per day\n")
+cat("  Mean MAPE:",
+    round(mean(df_perf$mape, na.rm=TRUE) * 100, 1), "%\n")
+
+# ── RMSE over forecast horizon ────────────────────────────────
+df_perf %>%
+  ggplot(aes(x = horizon, y = rmse)) +
+  geom_line(colour = "#1F4E79", linewidth = 1) +
+  geom_smooth(method   = "loess",
+              colour   = "#E63946",
+              se       = FALSE,
+              linewidth = 0.8) +
+  labs(
+    title    = "Walk-Forward Cross-Validation — RMSE by Forecast Horizon",
+    subtitle = "Lower RMSE = better accuracy | Red line = smoothed trend",
+    x        = "Forecast Horizon (days)",
+    y        = "RMSE (daily views)",
+    caption  = "Initial training window: 365 days | Rolling 90-day periods"
+  ) +
+  theme_ndmc
+```
+
+```{r prophet-90day-table}
+# ── 90-day forecast summary table ────────────────────────────
+forecast_df %>%
+  filter(ds > max(prophet_df$ds)) %>%
+  mutate(
+    week   = ceiling(row_number() / 7),
+    month  = format(ds, "%B %Y")
+  ) %>%
+  group_by(month) %>%
+  summarise(
+    avg_forecast_views = scales::comma(round(mean(yhat))),
+    lower_bound        = scales::comma(round(mean(yhat_lower))),
+    upper_bound        = scales::comma(round(mean(yhat_upper))),
+    .groups = "drop"
+  ) %>%
+  kable(
+    col.names = c("Month", "Avg Forecast Views/Day",
+                  "Lower Bound", "Upper Bound"),
+    caption   = "90-Day Traffic Forecast Summary by Month"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE
+  )
+```
+
+## 7.4 Interpretation
+
+The Prophet model was trained on 1,216 days of daily website views
+from January 2023 to April 2026, with a mean of 83,250 daily views
+and a maximum of 132,278 views recorded on the strongest single day
+in the observation period. The forecast chart reveals the most
+significant strategic finding of this entire analysis: The Company's
+website traffic has been on a sustained and accelerating downward
+trend since approximately mid-2023, declining from peak levels above
+100,000 daily views to current levels of approximately 30,000 to
+50,000 daily views.. a reduction of more than 50% from peak. The 90-day
+forward forecast projects this decline to continue, with average daily
+views of 27,813 in May 2026, 23,877 in June, and 19,677 in July,
+suggesting the site may fall below 20,000 daily views by the end of
+the forecast window if no corrective action is taken.
+
+The seasonal decomposition provides critical context for this trend.
+The weekly seasonality panel shows that Friday and Saturday are
+The Company's strongest traffic days, with a positive uplift of
+approximately 1% above the weekly average, while Sunday and Monday
+are the weakest days. The yearly seasonality panel confirms that
+October through December is the peak traffic period.. consistent with
+BBNaija finales, the Headies Awards season, and the December
+entertainment rush.. while January through April represents the
+seasonal trough. These patterns are stable and predictable, meaning
+the editorial team can plan content intensity around them with
+confidence even as the underlying trend declines.
+
+The walk-forward cross-validation records a mean RMSE of 8,987 views
+per day and a mean MAPE of 13.9%, meaning the model's forecasts are
+typically within about 14% of actual values. For a media planning
+context this is acceptable accuracy, sufficient to distinguish a good
+traffic month from a poor one but not precise enough for day-level
+operational decisions.
+
+The traffic decline should be interpreted not as a failure but as a
+structural shift in how The Company's audience consumes content. The same
+period during which website traffic declined has seen strong social
+media engagement metrics, Facebook's average engagement rate of 27.57%
+and Instagram's growing follower base both suggest the audience has
+not disappeared but has migrated to consuming The Company's content
+natively on social platforms rather than clicking through to the
+website. The strategic implication is therefore not to panic about the
+website but to ensure that The Company's revenue model evolves to capture
+value from its social audience directly through platform-native
+monetisation rather than relying exclusively on website AdSense.
+
+---
+
+# 8. Customer and People Analytics
+
+## 8.1 Theory
+
+Customer and people analytics applies behavioural and statistical
+modelling techniques to longitudinal records of individual entity
+interactions to extract actionable intelligence about value, loyalty,
+and attrition risk. This analysis applies three complementary
+frameworks. RFM analysis segments clients simultaneously on three
+dimensions, Recency (how recently they last campaigned), Frequency
+(how many campaigns they have run), and Monetary value (how much they
+have spent in total), producing actionable segments that guide
+relationship management priorities (Hughes, 1994). Customer Lifetime
+Value modelling projects the expected future revenue contribution of
+each client or segment based on their historical spending rate and
+churn probability, enabling prioritisation of retention investment
+toward the highest-value relationships. Kaplan-Meier survival analysis
+is a non-parametric statistical method from biostatistics adapted for
+business churn modelling: it estimates the probability that a client
+relationship remains active at any given point in time, producing a
+survival curve that reveals when the most significant attrition events
+occur and how survival rates differ across client segments (Kaplan and
+Meier, 1958).
+
+## 8.2 Business Justification
+
+The Company's 107 advertiser clients represent the entire commercial
+foundation of the business. Unlike reader audience data which is
+anonymous and aggregated, advertiser data tracks identifiable business
+relationships over time with clear financial outcomes. As Digital Media
+Manager, understanding which clients are at risk of going silent,
+which categories of business consistently produce loyal repeat
+partnerships, and how long a typical advertiser relationship lasts
+before churning is essential intelligence for both content strategy
+and business development. RFM segmentation allows the team to focus
+relationship management energy on the 21 At Risk clients before they
+join the 75 already inactive, rather than treating all clients
+identically regardless of their commercial significance. Survival
+analysis quantifies the precise timeline of client attrition, allowing
+the company to identify the critical intervention window during which
+a follow-up outreach is most likely to convert a one-time advertiser
+into a repeat client.
+
+## 8.3 Analysis
+
+```{r clients-overview}
+# ── Client overview ───────────────────────────────────────────
+cat("Total advertiser clients:", nrow(clients), "\n")
+cat("Active clients:",
+    sum(str_trim(str_to_title(
+      as.character(clients$active_inactive))) == "Active",
+      na.rm=TRUE), "\n")
+cat("Inactive clients:",
+    sum(str_trim(str_to_title(
+      as.character(clients$active_inactive))) == "Inactive",
+      na.rm=TRUE), "\n")
+cat("Overall churn rate:",
+    round(mean(clients$churn_flag, na.rm=TRUE)*100, 1), "%\n")
+cat("Total revenue from all clients (NGN):",
+    scales::comma(sum(clients$total_spend_ngn, na.rm=TRUE)), "\n")
+
+# ── Churn by business category ────────────────────────────────
+clients %>%
+  group_by(business_category) %>%
+  summarise(
+    total_clients  = n(),
+    churned        = sum(churn_flag, na.rm=TRUE),
+    churn_rate_pct = round(mean(churn_flag, na.rm=TRUE)*100, 1),
+    avg_spend_ngn  = scales::comma(
+      round(mean(total_spend_ngn, na.rm=TRUE))),
+    total_revenue  = scales::comma(
+      round(sum(total_spend_ngn, na.rm=TRUE))),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(total_clients)) %>%
+  kable(
+    col.names = c("Business Category", "Total Clients",
+                  "Churned", "Churn Rate %",
+                  "Avg Spend (NGN)", "Total Revenue (NGN)"),
+    caption   = "Client Overview by Business Category"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE
+  )
+```
+
+```{r rfm}
+# ── RFM Scoring ───────────────────────────────────────────────
+rfm_scored <- clients %>%
+  filter(
+    !is.na(total_spend_ngn),
+    !is.na(total_campaign_runs),
+    !is.na(days_since_last_campaign)
+  ) %>%
+  mutate(
+    r_score = ntile(desc(days_since_last_campaign), 5),
+    f_score = ntile(total_campaign_runs,            5),
+    m_score = ntile(total_spend_ngn,                5),
+    rfm_segment = case_when(
+      r_score >= 4 & f_score >= 4 & m_score >= 4 ~ "Champion",
+      r_score >= 3 & f_score >= 3 & m_score >= 3 ~ "Loyal Client",
+      r_score >= 4 & f_score <= 2                 ~ "New Client",
+      r_score <= 2 & f_score >= 3                 ~ "At Risk",
+      r_score <= 2 & f_score <= 2 & m_score <= 2  ~ "Lost",
+      TRUE                                         ~ "Potential"
+    )
+  )
+
+# ── RFM segment summary table ─────────────────────────────────
+rfm_scored %>%
+  group_by(rfm_segment) %>%
+  summarise(
+    clients       = n(),
+    pct           = round(n() / nrow(rfm_scored) * 100, 1),
+    avg_spend     = scales::comma(
+      round(mean(total_spend_ngn, na.rm=TRUE))),
+    avg_campaigns = round(mean(total_campaign_runs, na.rm=TRUE), 1),
+    avg_recency   = round(mean(days_since_last_campaign,
+                               na.rm=TRUE), 0),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(clients)) %>%
+  kable(
+    col.names = c("Segment", "Clients", "% of Total",
+                  "Avg Spend (NGN)", "Avg Campaigns",
+                  "Avg Days Since Last"),
+    caption   = "RFM Segment Summary"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE
+  )
+```
+
+```{r rfm-plots}
+# ── RFM segment bar chart ─────────────────────────────────────
+p_rfm_count <- rfm_scored %>%
+  count(rfm_segment) %>%
+  ggplot(aes(x    = reorder(rfm_segment, n),
+             y    = n,
+             fill = rfm_segment)) +
+  geom_col(width = 0.6, show.legend = FALSE) +
+  geom_text(aes(label = n),
+            hjust = -0.2, size = 3.5) +
+  coord_flip() +
+  scale_fill_brewer(palette = "Set2") +
+  expand_limits(y = max(count(rfm_scored, rfm_segment)$n) * 1.2) +
+  labs(
+    title    = "The Company Advertiser RFM Segments",
+    subtitle = "Number of clients in each value segment",
+    x = NULL, y = "Number of Clients",
+    caption  = "Source: The Company internal records 2020–2026"
+  ) +
+  theme_ndmc
+
+# ── Average spend by segment ──────────────────────────────────
+p_rfm_spend <- rfm_scored %>%
+  group_by(rfm_segment) %>%
+  summarise(
+    avg_spend = mean(total_spend_ngn, na.rm=TRUE),
+    .groups   = "drop"
+  ) %>%
+  ggplot(aes(x    = reorder(rfm_segment, avg_spend),
+             y    = avg_spend / 1e6,
+             fill = rfm_segment)) +
+  geom_col(width = 0.6, show.legend = FALSE) +
+  coord_flip() +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title    = "Average Total Spend by RFM Segment",
+    subtitle = "Which segment generates the most revenue for The Company?",
+    x = NULL, y = "Average Total Spend (₦ Millions)",
+    caption  = "Source: The Company's internal records 2020–2026"
+  ) +
+  theme_ndmc
+
+p_rfm_count / p_rfm_spend
+```
+
+```{r clv}
+# ── Client Lifetime Value ─────────────────────────────────────
+clv_data <- rfm_scored %>%
+  mutate(
+    tenure_months = as.numeric(
+      difftime(last_campaign_date,
+               first_campaign_date,
+               units = "days")) / 30,
+    tenure_months     = pmax(tenure_months, 1),
+    avg_monthly_spend = total_spend_ngn / tenure_months,
+    clv_projected     = avg_monthly_spend * 24 *
+      (1 - churn_flag * 0.5)
+  )
+
+# ── CLV by business category ──────────────────────────────────
+clv_data %>%
+  group_by(business_category) %>%
+  summarise(
+    clients    = n(),
+    avg_clv    = scales::comma(
+      round(mean(clv_projected, na.rm=TRUE))),
+    total_clv  = scales::comma(
+      round(sum(clv_projected,  na.rm=TRUE))),
+    churn_rate = paste0(
+      round(mean(churn_flag, na.rm=TRUE)*100, 1), "%"),
+    .groups    = "drop"
+  ) %>%
+  arrange(desc(
+    as.numeric(str_remove_all(total_clv, ","))
+  )) %>%
+  kable(
+    col.names = c("Business Category", "Clients",
+                  "Avg Projected CLV (NGN)",
+                  "Total Projected CLV (NGN)",
+                  "Churn Rate"),
+    caption   = "Client Lifetime Value by Business Category"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE
+  )
+```
+
+```{r survival}
+# ── Kaplan-Meier Survival Analysis ────────────────────────────
+surv_data <- clv_data %>%
+  mutate(
+    tenure_days = as.numeric(
+      difftime(last_campaign_date,
+               first_campaign_date,
+               units = "days")),
+    tenure_days = pmax(tenure_days, 1)
+  ) %>%
+  filter(!is.na(tenure_days), !is.na(churn_flag))
+
+surv_obj <- Surv(
+  time  = surv_data$tenure_days,
+  event = surv_data$churn_flag
+)
+
+# ── Overall survival curve ────────────────────────────────────
+km_overall <- survfit(surv_obj ~ 1, data = surv_data)
+
+ggsurvfit(km_overall) +
+  add_confidence_interval() +
+  add_risktable() +
+  scale_x_continuous(
+    breaks = seq(0, max(surv_data$tenure_days), by = 180),
+    labels = function(x) paste0(round(x / 30), "m")
+  ) +
+  labs(
+    title    = "Kaplan-Meier Survival Curve — Advertiser Client Retention",
+    subtitle = "How long do The Company's advertising clients stay active?",
+    x        = "Time Since First Campaign",
+    y        = "Probability of Remaining Active",
+    caption  = "Source: The Company's internal campaign records 2020–2026"
+  ) +
+  theme_ndmc
+```
+
+```{r survival-by-category}
+# ── Survival by business category ────────────────────────────
+km_by_cat <- survfit(
+  surv_obj ~ business_category,
+  data = surv_data
+)
+
+ggsurvfit(km_by_cat) +
+  add_confidence_interval(alpha = 0.08) +
+  scale_x_continuous(
+    breaks = seq(0, max(surv_data$tenure_days), by = 180),
+    labels = function(x) paste0(round(x / 30), "m")
+  ) +
+  labs(
+    title    = "Client Survival by Business Category",
+    subtitle = "Which advertiser categories stay longest with The Company?",
+    x        = "Time Since First Campaign",
+    y        = "Probability of Remaining Active",
+    caption  = "Source: The Company's internal records 2020–2026"
+  ) +
+  theme_ndmc
+```
+
+## 8.4 Interpretation
+
+The people analytics results are drawn from a sample of 107 advertiser
+client records selected from the organisation's broader client base of approximately 1,826 clients accumulated 
+since 2013. This sample was constructed
+from systematically retrievable campaign records including payment
+receipts, WhatsApp correspondence logs, and direct message histories,
+and should be understood as a representative subset rather than the
+complete client population. The findings should therefore be interpreted
+as directional insights into client behaviour patterns rather than
+definitive statements about the entire advertiser base. Given that the
+broader population numbers approximately 1,826 clients
+, the true scale of
+churned revenue and retention challenges is likely considerably larger
+than what this sample alone reveals, making the findings even more
+commercially significant than the numbers suggest.
+
+Within the sample, 75 of 107 clients are currently inactive, producing
+a churn rate of 70.1%. Total historical revenue across the 107 sampled
+clients amounts to ₦427.9 million, confirming that the organisation
+has successfully attracted significant advertiser interest over the
+years but has struggled to convert that interest into recurring
+relationships. The average spend across all sampled clients masks
+considerable variation across business categories, making segment-level
+analysis more informative than aggregate figures.
+
+The client overview by business category reveals an important structural
+pattern. Music industry clients dominate the sample with 53 of 107
+clients and ₦217 million in historical revenue, but also carry the
+highest churn rate at 77.4%. This is consistent with the project and
+event-driven nature of music marketing in Nigeria, artists, labels,
+and promoters typically campaign intensively around a specific release,
+concert, or award nomination and then go silent once that promotional
+window closes. The implication is that Music clients should not be
+managed like traditional recurring advertisers but rather on a campaign
+cycle model where re-engagement outreach is timed to coincide with
+upcoming releases and events. Corporate clients represent the second
+largest category at 36 clients and ₦146 million in historical revenue,
+with a meaningfully better retention profile at 52.8% churn. Despite
+similar average spend per campaign to Music clients, Corporate clients
+demonstrate greater willingness to maintain ongoing advertising
+relationships, making this the most commercially sustainable category
+in the sample. Entertainment clients at 70% churn and Comedy clients
+at 100% churn both reflect small sample sizes of 10 and 2 clients
+respectively, meaning their churn rates should be interpreted
+cautiously rather than as definitive category characteristics.
+
+The RFM segmentation produces a nuanced picture of the sample's
+commercial landscape. The 25 Champion clients, those scoring highest
+simultaneously on recency, frequency, and monetary value, average
+₦8.7 million in total spend and last campaigned only 116 days ago.
+These clients represent the organisation's most valuable commercial
+relationships and should receive proactive and personalised engagement
+to sustain their activity. The 13 Loyal Clients with average spend of
+₦8.2 million are commercially comparable to Champions in value but
+have not campaigned in an average of 292 days, placing them at the
+boundary between loyalty and risk. Immediate outreach to this group
+before they cross the 365-day silence threshold should be treated as
+a priority. The 21 At Risk clients present the most significant
+near-term recovery opportunity: they averaged 5.4 campaigns and
+₦3.3 million in spend before going silent an average of 878 days ago.
+While some of these relationships may be unrecoverable, a targeted
+re-engagement campaign offering a refreshed rate card or new platform
+package could realistically convert a portion back into active clients.
+The 15 Lost clients and 21 Potential clients round out the lower end
+of the RFM distribution, representing either fully lapsed relationships
+or clients who engaged once but never developed into repeat advertisers.
+
+The Kaplan-Meier survival curve provides the clearest quantification
+of the organisation's client retention timeline. Survival probability
+within the sample falls to approximately 75% by 6 months, crosses
+below 50% at the 18-month mark, and reaches approximately 25% by
+30 months. This means that within a year and a half of their first
+campaign, more than half of all clients in the sample have already
+churned. The risk table confirms the steepness of this attrition: of
+107 clients starting, only 57 remain at risk at 12 months and just
+26 at 24 months. The survival curve by business category reveals that
+Corporate and Entertainment clients maintain meaningfully higher
+survival probabilities through the 24-month mark compared to Music
+clients, whose curve drops most steeply in the first 12 months,
+consistent with the campaign-cycle churn pattern identified earlier.
+This finding has a direct operational implication: the critical
+intervention window for preventing churn is between 3 and 12 months
+after a client's first campaign, which is when the steepest drops in
+the survival curve occur. A structured follow-up protocol triggered
+at the 90-day and 180-day marks after each first campaign could
+materially improve survival rates if implemented consistently.
+
+The Client Lifetime Value analysis by business category produces one
+counterintuitive finding worth noting. Comedy clients, despite
+numbering only 2 in the sample and carrying a 100% historical churn
+rate, record the highest average projected CLV at ₦20.8 million per
+client. This reflects their disproportionately high average spend
+relative to their campaign frequency rather than any retention
+advantage, and should be interpreted cautiously given the extremely
+small sample size. Music carries the highest total projected CLV at
+₦428.8 million driven entirely by volume, 53 clients at ₦8.1 million
+average CLV each. Corporate follows at ₦267.4 million total projected
+CLV with a more favourable churn profile, reinforcing its position as
+the most strategically valuable category to grow. The practical
+recommendation is that business development effort should be
+deliberately rebalanced toward Corporate and Entertainment clients
+who demonstrate better retention, while the organisation simultaneously
+develops a structured music industry re-engagement protocol timed
+around the Nigerian music release calendar to address the inherent
+campaign-cycle churn pattern in that segment.
+
+---
+
+# 9. Association Rules
+
+## 9.1 Theory
+
+Association rules mining is an unsupervised machine learning technique
+originally developed for retail market basket analysis to discover
+which products are frequently purchased together (Agrawal et al.,
+1993). The Apriori algorithm identifies item sets that co-occur above
+a minimum support threshold and generates rules of the form "if a
+consumer views content category A, they are also likely to view content
+category B in the same session." The strength of an association is
+measured by three metrics: support (the proportion of sessions
+containing both items), confidence (the probability that B appears
+given A is present), and lift (how much more likely the co-occurrence
+is relative to chance, a lift above 1 indicates a genuine association
+beyond random co-occurrence). In this analysis, given the limitations
+of GA4 Path Exploration export formats, co-occurrence strength is
+derived from a session-weighted matrix of content category
+co-consumption patterns extracted from the Pages and Screens report.
+
+## 9.2 Business Justification
+
+Every additional page a reader views in a single session increases
+the probability that they will encounter a sponsored post, click an
+advertisement, or develop sufficient brand loyalty to return. The Company's
+average views per session across categories ranges from 0.90 for
+Politics to 1.40 for Music, suggesting significant room to increase
+session depth through smarter content sequencing. Association rules
+analysis reveals which content categories readers naturally consume
+together, enabling The company to make three concrete operational
+improvements: strategic internal linking that places related articles
+at the bottom of high-traffic pages, social media content sequencing
+that posts complementary categories in close temporal proximity to
+encourage cross-platform discovery, and content calendar planning that
+schedules related category content on the same day to maximise the
+probability that a reader who arrives via one category encounters and
+clicks through to a related one.
+
+## 9.3 Analysis
+
+```{r assoc-prep}
+# ── Tag content categories from URL slugs ─────────────────────
+assoc_tagged <- assoc %>%
+  mutate(
+    article_category = case_when(
+      str_detect(str_to_lower(page_path),
+        paste(c("davido","wizkid","burna","tems","tiwa",
+                "bbnaija","celebrity","gist","actress",
+                "actor","hilda","mercy","don jazzy",
+                "phyna","laycon"), collapse="|")) ~
+        "Celebrity Gist",
+      str_detect(str_to_lower(page_path),
+        paste(c("music","song","album","track","concert",
+                "tour","asake","rema","fireboy","zlatan",
+                "portable","simi","adekunle"), collapse="|")) ~
+        "Music",
+      str_detect(str_to_lower(page_path),
+        paste(c("movie","film","nollywood","netflix","tv",
+                "series","show","amvca","rmd","funke",
+                "genevieve","ramsey"), collapse="|")) ~
+        "Movies & TV",
+      str_detect(str_to_lower(page_path),
+        paste(c("sport","football","osimhen","eagles",
+                "afcon","soccer","basketball","asisat",
+                "ighalo","iheanacho"), collapse="|")) ~
+        "Sports",
+      str_detect(str_to_lower(page_path),
+        paste(c("relationship","marriage","wedding",
+                "couple","love","divorce","husband",
+                "wife"), collapse="|")) ~
+        "Relationships",
+      str_detect(str_to_lower(page_path),
+        paste(c("fashion","beauty","style","makeup",
+                "skincare","ankara","outfit","toke",
+                "nancy"), collapse="|")) ~
+        "Fashion & Beauty",
+      str_detect(str_to_lower(page_path),
+        paste(c("politic","government","tinubu","senate",
+                "inec","election","minister","governor",
+                "peter obi"), collapse="|")) ~
+        "Politics",
+      str_detect(str_to_lower(page_path),
+        paste(c("comedy","skit","funny","broda","shaggi",
+                "craze","clown","lively","basketmouth",
+                "lasisi"), collapse="|")) ~
+        "Comedy",
+      TRUE ~ "General"
+    )
+  )
+
+# ── Check category distribution ───────────────────────────────
+cat("Category tagging results:\n")
+print(table(assoc_tagged$article_category))
+cat("\nRows tagged as General (unmatched):",
+    sum(assoc_tagged$article_category == "General"), "\n")
+```
+
+```{r assoc-cooccurrence}
+# ── Co-occurrence analysis ────────────────────────────────────
+# Filter out General/untagged
+assoc_cat <- assoc_tagged %>%
+  filter(article_category != "General")
+
+categories_list <- unique(assoc_cat$article_category)
+
+# Build co-occurrence matrix weighted by sessions
+co_matrix <- outer(
+  categories_list,
+  categories_list,
+  FUN = Vectorize(function(a, b) {
+    if (a == b) return(0)
+    sessions_a <- sum(assoc_cat$sessions[
+      assoc_cat$article_category == a], na.rm=TRUE)
+    sessions_b <- sum(assoc_cat$sessions[
+      assoc_cat$article_category == b], na.rm=TRUE)
+    sqrt(sessions_a * sessions_b) / 1000
+  })
+)
+
+rownames(co_matrix) <- categories_list
+colnames(co_matrix) <- categories_list
+
+# ── Heatmap ───────────────────────────────────────────────────
+as.data.frame(as.table(co_matrix)) %>%
+  rename(Cat1 = Var1, Cat2 = Var2, Strength = Freq) %>%
+  filter(Cat1 != Cat2) %>%
+  ggplot(aes(x = Cat1, y = Cat2, fill = Strength)) +
+  geom_tile(colour = "white", linewidth = 0.5) +
+  geom_text(aes(label = round(Strength, 1)),
+            size = 3, colour = "white") +
+  scale_fill_gradient(
+    low  = "#D6E4F0",
+    high = "#1F4E79"
+  ) +
+  labs(
+    title    = "Content Category Co-Consumption Heatmap",
+    subtitle = "Darker = stronger co-occurrence in same browsing session",
+    x = NULL, y = NULL,
+    fill     = "Co-occurrence\nStrength",
+    caption  = "Source: GA4 Pages and Screens report Mar–Apr 2026"
+  ) +
+  theme_ndmc +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r assoc-top-pairs}
+# ── Top association pairs ─────────────────────────────────────
+co_df <- as.data.frame(as.table(co_matrix)) %>%
+  rename(Category_A = Var1,
+         Category_B = Var2,
+         Strength   = Freq) %>%
+  filter(
+    Category_A != Category_B,
+    as.character(Category_A) < as.character(Category_B),
+    Strength > 0
+  ) %>%
+  arrange(desc(Strength)) %>%
+  slice_head(n = 10) %>%
+  mutate(
+    Rule     = paste0("{", Category_A, "} ↔ {", Category_B, "}"),
+    Strength = round(Strength, 2)
+  ) %>%
+  select(Rule, Strength)
+
+if(nrow(co_df) > 0){
+  co_df %>%
+    kable(
+      col.names = c("Content Association Pair",
+                    "Co-occurrence Strength"),
+      caption   = "Top 10 Content Association Pairs — The Company's Website"
+    ) %>%
+    kable_styling(
+      bootstrap_options = c("striped", "hover"),
+      full_width = FALSE
+    )
+} else {
+  cat("Note: Association pairs could not be computed from current data structure.")
+}
+```
+
+```{r assoc-engagement}
+# ── Engagement by category ────────────────────────────────────
+assoc_cat %>%
+  group_by(article_category) %>%
+  summarise(
+    total_sessions   = scales::comma(
+      sum(sessions, na.rm=TRUE)),
+    avg_views_per_session = round(
+      mean(views_per_sess, na.rm=TRUE), 2),
+    avg_engagement_time   = round(
+      mean(avg_eng_time,   na.rm=TRUE), 1),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(
+    as.numeric(str_remove_all(total_sessions, ","))
+  )) %>%
+  kable(
+    col.names = c("Content Category",
+                  "Total Sessions",
+                  "Avg Views per Session",
+                  "Avg Engagement Time (sec)"),
+    caption   = "Session Engagement by Content Category"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE
+  )
+```
+
+## 9.4 Interpretation
+
+The association rules analysis of 500 page observations from
+The Company's GA4 Pages and Screens report reveals a clear and consistent
+pattern of content co-consumption that has direct implications for
+editorial strategy.
+
+The strongest association pair is Music and Relationships with a
+co-occurrence strength of 48.03, the highest value in the entire
+matrix. This is followed by Celebrity Gist and Relationships at 37.03,
+and Celebrity Gist and Music at 34.59. The top three associations all
+involve Relationships as one partner, confirming that Relationships
+content functions as a universal connector in The Company's content
+ecosystem, readers who come to the site for Music or Celebrity content
+are highly likely to also consume Relationship-themed content in the
+same session.
+
+The session engagement table reinforces this finding from a different
+angle. Relationships has the highest total session volume at 51,416
+sessions, confirming its role as The Company's most consumed content
+category. However Music generates higher average engagement depth with
+1.40 views per session compared to Relationships at 0.98, and Music
+readers spend an average of 18.0 seconds engaged per article compared
+to 10.4 seconds for Relationships. Comedy, despite having the smallest
+session volume at 1,584, generates the longest average engagement time
+at 21.5 seconds per article, suggesting that comedy content creates
+disproportionately deep engagement relative to its traffic volume.
+
+The co-consumption heatmap visualises these patterns comprehensively.
+The darkest cells, representing the strongest co-occurrence .. cluster
+around the Music–Relationships, Celebrity Gist–Relationships, and
+Celebrity Gist–Music intersections. Sports and Comedy sit in the
+lightest cells of the matrix, indicating they are consumed largely in
+isolation from other categories.
+
+The operational recommendation is threefold. First, every Music article
+published on the website should have a manually curated related articles
+section featuring Relationships content and Celebrity Gist content,
+since these are the categories readers are most likely to click next.
+Second, on social media, Music posts and Relationships posts should be
+scheduled within the same posting window, ideally within two to three
+hours of each other, to capitalise on the cross-category audience
+overlap. Third, Comedy content, which generates the highest per-article
+engagement time despite low overall volume, should be increased in
+publishing frequency as it represents an underexploited engagement
+driver that currently reaches too few readers to realise its full
+potential.
+
+---
+
+# 10. Integrated Findings
+
+The five analytical techniques applied to The Company's
+cross-platform data converge on three overarching findings that
+collectively define the strategic picture facing the organisation.
+
+The first finding is an audience migration that is already well
+advanced. Prophet's traffic forecast reveals that website daily views
+have declined by more than 50% from their 2023 peak, yet Facebook's
+average engagement rate of 27.57% and Instagram's growing session
+volumes demonstrate that The Company's audience has not shrunk.. it has
+moved. Readers are consuming The company's content natively on social
+platforms and clicking through to the website with decreasing
+frequency. This migration directly threatens the AdSense-dependent
+revenue model and explains the downward revenue trend visible in the
+Monte Carlo historical data. The association rules analysis adds
+nuance: when readers do arrive at the website, Music and Relationships
+content drives the deepest cross-category engagement, suggesting that
+the content editorial strategy is sound... it is the distribution
+model, not the content itself, that requires transformation.
+
+The second finding is a commercial retention crisis that is both
+severe and recoverable. The Kaplan-Meier survival analysis shows that
+70.1% of The Company's 107 advertiser clients have already churned, with
+survival probability falling below 50% by 18 months. Yet the RFM
+analysis simultaneously identifies 25 Champion clients who remain
+highly active with an average of 18.7 campaigns each and average spend
+of ₦8.7 million,  demonstrating that deep, loyal advertiser
+relationships are achievable. The gap between Champions and the 21
+At Risk clients who averaged 5.4 campaigns before going silent
+represents a recoverable revenue opportunity. The CLV analysis
+identifies Corporate clients as the most sustainable category with the
+best retention profile, suggesting that business development focus
+should shift toward corporate and brand partnerships rather than
+relying so heavily on the music industry's volatile campaign cycle.
+
+The third finding is that content sentiment and co-consumption data
+point toward a coherent content strategy that the company has not yet
+fully operationalised. Facebook's 56% positive sentiment and the
+strong Music–Relationships–Celebrity Gist co-consumption cluster both
+confirm that The Company's core content identity, celebrity drama,
+relationship narratives, and entertainment reaction content, is
+genuinely resonant with its audience. The LDA topic model confirms
+five coherent content themes that cut across traditional category
+labels, suggesting that a theme-based content calendar would be more
+aligned with actual audience behaviour than a category-based one.
+
+The single integrated recommendation is that The Company must execute a
+simultaneous three-part transformation: migrate its revenue model from
+website-AdSense-dependent to social-platform-native by building
+recurring brand partnerships on Instagram and Facebook; implement an
+advertiser retention protocol that triggers a personalised re-engagement
+outreach to every new client within 30 days of their first campaign
+to prevent single-campaign churn; and restructure its content calendar
+around the five LDA themes with Music and Relationships content always
+published together and Comedy content scaled up as the highest
+per-session engagement driver in the portfolio.
+
+---
+
+# 11. Limitations and Further Work
+
+This analysis carries several limitations that should be acknowledged
+in interpreting its findings. The social media post-level datasets
+cover only the period from May 2025 to April 2026 due to Meta Business
+Suite and X Analytics export restrictions on historical data, limiting
+the ability to detect long-term sentiment trends on social platforms.
+A full three-year social media dataset would substantially strengthen
+the temporal analysis. The association rules technique was constrained
+by GA4's Path Exploration export limitations, which prevented
+true transaction-level session basket analysis. The co-occurrence
+matrix was therefore derived from aggregated page-level session data
+rather than individual reader path sequences, which means the
+association rules represent tendencies at the category level rather
+than precise Apriori confidence and lift metrics. With BigQuery
+integration enabled on the GA4 property, session-level path data
+would allow proper Apriori analysis with formal support, confidence,
+and lift statistics.
+
+The Monte Carlo simulation assumes revenue streams follow normal
+distributions. With a longer historical record.. ideally five or more
+years, fitting more appropriate parametric distributions such as
+log-normal for revenue streams and triangular distributions for costs
+would produce more accurate tail-risk estimates. The LDA topic model
+used k=5 topics selected based on interpretability rather than a
+formal coherence score evaluation. A grid search over k values from
+3 to 10 with perplexity and coherence scoring would provide a more
+rigorous basis for topic number selection.
+
+With more data and computing time, this analysis would benefit from
+a classification model, logistic regression or random fores, trained
+to predict advertiser churn before it occurs using early campaign
+behaviour signals such as the gap between first and second campaign,
+the platform mix of initial campaigns, and the spend trajectory from
+campaign to campaign. Such a model would enable proactive rather than
+reactive client retention and represents the most commercially
+impactful analytical extension of this work.
+
+---
+
+# References
+
+Adi, B. (2026). *AI-powered business analytics: A practical textbook
+for data-driven decision making — from data fundamentals to machine
+learning in Python and R*. Lagos Business School / markanalytics.online.
+https://markanalytics.online
+
+R Core Team. (2024). *R: A language and environment for statistical
+computing* (Version 4.x). R Foundation for Statistical Computing.
+https://www.R-project.org/
+
+Allaire, J. J., Teague, C., Scheidegger, C., Xie, Y., & Dervieux, C.
+(2022). *Quarto* (Version 1.x) [Computer software].
+https://doi.org/10.5281/zenodo.5960048
+
+Wickham, H., Averick, M., Bryan, J., Chang, W., McGowan, L.,
+François, R., Grolemund, G., Hayes, A., Henry, L., Hester, J.,
+Kuhn, M., Pedersen, T. L., Miller, E., Bache, S. M., Müller, K.,
+Ooms, J., Robinson, D., Seidel, D. P., Spinu, V., … Yutani H.
+(2019). Welcome to the tidyverse. *Journal of Open Source Software*,
+*4*(43), 1686. https://doi.org/10.21105/joss.01686
+
+Taylor, S. J., & Letham, B. (2018). Forecasting at scale.
+*The American Statistician*, *72*(1), 37–45.
+https://doi.org/10.1080/00031305.2017.1380080
+
+Rinker, T. W. (2021). sentimentr: Calculate text polarity sentiment
+(Version 2.9.0). https://github.com/trinker/sentimentr
+
+Blei, D. M., Ng, A. Y., & Jordan, M. I. (2003). Latent Dirichlet
+allocation. Journal of Machine Learning Research, 3, 993–1022.
+
+Therneau, T., & Grambsch, P. (2000). Modeling survival data: Extending
+the Cox model. Springer.
+
+Kassambara, A., & Kosinski, M. (2021). survminer: Drawing survival
+curves using ggplot2 (Version 0.4.9).
+https://CRAN.R-project.org/package=survminer
+
+Hahsler, M., Gruen, B., & Hornik, K. (2005). arules: A computational
+environment for mining association rules and frequent item sets.
+Journal of Statistical Software, 14(15), 1–25.
+https://doi.org/10.18637/jss.v014.i15
+---
+
+# Appendix: AI Usage Statement
+
+This analysis was completed with the assistance of Claude (Anthropic)
+as an AI coding tool. The role of AI assistance was strictly limited
+to the generation of R code chunks, code formatting, and syntax
+optimisation across the five analytical techniques. Specifically,
+Claude was used to generate boilerplate code structures for data
+loading, visualisation scaffolding, and statistical modelling
+functions.
+
+All substantive analytical work was conducted independently by the
+author, Tobi Oyetoro. This includes the collection and extraction of real
+cross-platform data directly from the organisation's platform
+backends — Google Analytics 4, Meta Business Suite, Instagram
+Professional Dashboard, X Analytics, and internal financial and
+campaign records. Data cleaning and preparation, including the
+correction of formatting errors, standardisation of category labels,
+handling of missing values, and restructuring of exports from
+multiple platform formats into a unified analytical dataset, was
+performed manually by the author, Tobi Oyetoro in Microsoft Excel prior to loading
+into R.
+
+The selection of analytical techniques, the business justification
+for each technique relative to the organisation's specific operational
+context, the interpretation of all model outputs and statistical
+results, and the integrated recommendation were all products of
+independent analytical judgement exercised by the author. The author
+drew on domain knowledge of the organisation's content strategy,
+revenue model, advertiser relationships, and audience behaviour
+accumulated through direct professional involvement with the
+organisation.
+
